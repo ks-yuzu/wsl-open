@@ -5,7 +5,7 @@
 # @brief Opens files on Windows Subsystem for Linux with default Windows applications
 # @author August Valera
 #
-# @version 2.2.1
+# @version 2.2.1-patched
 
 # Global
 # shellcheck disable=SC1117
@@ -15,7 +15,10 @@
 Exe=$(basename "$0" .sh)
 PowershellExe=$(command -v powershell.exe)
 PowershellExe=${PowershellExe:-/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe}
-WslOpenExe=${WslOpenExe:-"${PowershellExe} Start"}
+ExplorerExe=$(command -v explorer.exe 2>/dev/null || echo /mnt/c/Windows/explorer.exe)
+WslOpenExe=${WslOpenExe:-}
+WslOpenExeWin=${WslOpenExeWin:-"${PowershellExe} Start"}
+WslOpenExeUNC=${WslOpenExeUNC:-"${ExplorerExe}"}
 WslPathExe=${WslPathExe:-"wslpath -w"}
 WslDisks=${WslDisks:-/mnt}
 EnableWslCheck=${EnableWslCheck:-true}
@@ -239,9 +242,18 @@ if [[ -n $File ]]; then
   fi
 
   # Open the file with Windows
-  if ! $DryRun; then
-    $WslOpenExe "\"$FileWin\""
+  # UNC パス (\\server\share や \\wsl$\... 等) の場合は explorer.exe、それ以外は powershell Start を使う
+  if [[ "$FileWin" == \\\\* ]]; then
+    OpenExe="$WslOpenExeUNC"
+    FilePath="$FileWin"
   else
-    DryRunner "$WslOpenExe \"$FileWin\""
+    OpenExe="$WslOpenExeWin"
+    FilePath="\"$FileWin\""
+  fi
+
+  if ! $DryRun; then
+    $OpenExe "$FilePath"
+  else
+    DryRunner "$OpenExe" "$FilePath"
   fi
 fi
